@@ -1,0 +1,230 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36" version="28.2.0">
+  <diagram name="Library Data Quality Architecture" id="library-architecture">
+    <mxGraphModel dx="1426" dy="743" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Library Data Quality Analysis - High Level Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="400" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="layer1-label" value="DATA SOURCES" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="40" y="80" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="csv-books" value="Books CSV" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="60" y="120" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="csv-customers" value="Customers CSV" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
+          <mxGeometry x="60" y="200" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="layer2-label" value="VERSION CONTROL" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="240" y="80" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="github" value="&lt;b&gt;GitHub Repository&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Python Scripts&lt;br&gt;• Unit Tests&lt;br&gt;• SQL Scripts&lt;br&gt;• Documentation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" parent="1" vertex="1">
+          <mxGeometry x="240" y="120" width="160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="layer3-label" value="PROJECT MANAGEMENT &amp; CI/CD" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="460" y="80" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="azure-devops" value="&lt;b&gt;Azure DevOps&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;verticalAlign=top;spacingTop=10;" parent="1" vertex="1">
+          <mxGeometry x="570" y="120" width="260" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="kanban" value="Kanban Board&lt;br&gt;Sprint Planning" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="590" y="150" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="pipeline" value="CI/CD Pipeline&lt;br&gt;Azure Pipelines" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="710" y="150" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="automation" value="Automated Testing&lt;br&gt;Code Quality Checks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="590" y="210" width="220" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="layer4-label" value="DATA PROCESSING" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="240" y="310" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="python-processing" value="&lt;b&gt;Python Processing Engine&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;verticalAlign=top;spacingTop=10;" parent="1" vertex="1">
+          <mxGeometry x="240" y="350" width="480" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="validator" target="cleaner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="validator" value="Data Validator&lt;br&gt;• Date validation&lt;br&gt;• Reference checks&lt;br&gt;• Format validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5d4;strokeColor=#82b366;fontSize=10;align=left;verticalAlign=top;spacingLeft=5;" parent="1" vertex="1">
+          <mxGeometry x="260" y="385" width="130" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="cleaner" target="transformer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cleaner" value="Data Cleaner&lt;br&gt;• Remove duplicates&lt;br&gt;• Fix formatting&lt;br&gt;• Handle missing data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5d4;strokeColor=#82b366;fontSize=10;align=left;verticalAlign=top;spacingLeft=5;" parent="1" vertex="1">
+          <mxGeometry x="410" y="385" width="130" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="transformer" target="sql-loader">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="630" y="470" />
+              <mxPoint x="480" y="470" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="transformer" value="Data Transformer&lt;br&gt;• Standardise dates&lt;br&gt;• Calculate metrics&lt;br&gt;• Generate reports" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5d4;strokeColor=#82b366;fontSize=10;align=left;verticalAlign=top;spacingLeft=5;" parent="1" vertex="1">
+          <mxGeometry x="560" y="385" width="140" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="sql-loader" value="SQL Loader&lt;br&gt;• Database connection&lt;br&gt;• Batch insert&lt;br&gt;• Transaction management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5d4;strokeColor=#82b366;fontSize=10;align=left;verticalAlign=top;spacingLeft=5;" parent="1" vertex="1">
+          <mxGeometry x="260" y="480" width="440" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="testing-box" value="&lt;b&gt;Unit Testing (pytest)&lt;/b&gt;&lt;br&gt;80%+ Code Coverage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" parent="1" vertex="1">
+          <mxGeometry x="780" y="350" width="160" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" edge="1" parent="1" source="security-box" target="github">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="115" y="300" />
+              <mxPoint x="320" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;dashed=1;fillColor=#f5f5f5;strokeColor=#666666;" edge="1" parent="1" source="security-box" target="sql-server">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="115" y="570" />
+              <mxPoint x="510" y="570" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="security-box" value="&lt;b&gt;Security&lt;/b&gt;&lt;br&gt;• Access Control&lt;br&gt;• Encryption&lt;br&gt;• Azure Key Vault" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="35" y="360" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="layer5-label" value="DATABASE LAYER" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="430" y="590" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="sql-server" target="powerbi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-6" value="Direct Query" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="HLASce6DREq6VaosLIM7-5">
+          <mxGeometry x="-0.0222" y="-2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sql-server" value="&lt;b&gt;SQL Server Database&lt;/b&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d0e7f5;strokeColor=#6c8ebf;fontSize=12;verticalAlign=top;spacingTop=10;" parent="1" vertex="1">
+          <mxGeometry x="410" y="630" width="200" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="sql-tables" value="• Books Table&lt;br&gt;• Customers Table&lt;br&gt;• BookCheckouts Table&lt;br&gt;• DataQualityLog Table&lt;br&gt;• ErrorDetails Table" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="420" y="670" width="180" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="staging" value="&lt;b&gt;Staging Tables&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Books_Staging&lt;br&gt;• Customers_Staging&lt;br&gt;• BookCheckouts_Staging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontSize=10;align=left;verticalAlign=top;spacingLeft=5;" parent="1" vertex="1">
+          <mxGeometry x="130" y="655" width="160" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="layer6-label" value="VISUALIZATION &amp; REPORTING" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" parent="1" vertex="1">
+          <mxGeometry x="700" y="590" width="250" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="powerbi" value="&lt;b&gt;Power BI Dashboard&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Data Quality Metrics&lt;br&gt;• Library Analytics&lt;br&gt;• Overdue Reports&lt;br&gt;• Popular Books&lt;br&gt;• Error Trends" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" parent="1" vertex="1">
+          <mxGeometry x="700" y="630" width="220" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" source="csv-books" target="github" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="1" source="csv-customers" target="github" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#f8cecc;strokeColor=#b85450;entryX=0;entryY=0.75;entryDx=0;entryDy=0;exitX=1;exitY=0.75;exitDx=0;exitDy=0;" parent="1" source="github" target="azure-devops" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3-label" value="Code Push" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;" parent="arrow3" vertex="1" connectable="0">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="10" y="-9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#fff2cc;strokeColor=#d6b656;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="azure-devops" target="python-processing" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="700" y="290" />
+              <mxPoint x="480" y="290" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-8" value="Triggers" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="arrow4">
+          <mxGeometry x="-0.0516" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#d5e8d4;strokeColor=#82b366;exitX=1;exitY=0.25;exitDx=0;exitDy=0;" parent="1" source="python-processing" target="testing-box" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-15" value="Test" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="arrow5">
+          <mxGeometry y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" source="sql-loader" target="staging" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-7" value="Load Data To Staging" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="arrow6">
+          <mxGeometry x="0.0462" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend-box" value="&lt;b&gt;LEGEND&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;verticalAlign=top;align=left;spacingLeft=10;spacingTop=5;" parent="1" vertex="1">
+          <mxGeometry x="980" y="120" width="180" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="legend1" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#6c8ebf;" parent="1" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1000" y="155" as="sourcePoint" />
+            <mxPoint x="1050" y="155" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend1-text" value="Data Flow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="145" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend2" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=1;strokeColor=#666666;dashed=1;" parent="1" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1000" y="180" as="sourcePoint" />
+            <mxPoint x="1050" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend2-text" value="Security/Control" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="170" width="90" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend3" value="" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=5;fillColor=#d0e7f5;strokeColor=#6c8ebf;" parent="1" vertex="1">
+          <mxGeometry x="1000" y="200" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend3-text" value="Database" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="205" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+          <mxGeometry x="1000" y="240" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend4-text" value="Processing" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="240" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend5" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="1000" y="270" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend5-text" value="Azure DevOps" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="270" width="90" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="issues-box" value="&lt;b&gt;DATA QUALITY ISSUES ADDRESSED&lt;/b&gt;&lt;br&gt;&lt;br&gt;✓ Invalid dates (future dates, impossible dates)&lt;br&gt;✓ Logical errors (return before checkout)&lt;br&gt;✓ Missing data (NaN values)&lt;br&gt;✓ Duplicate records&lt;br&gt;✓ Formatting issues (quotes, spaces)&lt;br&gt;✓ Missing customer references" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" parent="1" vertex="1">
+          <mxGeometry x="980" y="330" width="280" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="features-box" value="&lt;b&gt;KEY FEATURES&lt;/b&gt;&lt;br&gt;&lt;br&gt;✓ Automated CI/CD Pipeline&lt;br&gt;✓ Comprehensive Unit Testing&lt;br&gt;✓ Transaction-based SQL Loading&lt;br&gt;✓ Real-time PowerBI Dashboards&lt;br&gt;✓ Audit Logging &amp; Error Tracking&lt;br&gt;✓ Secure Credential Management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" parent="1" vertex="1">
+          <mxGeometry x="980" y="510" width="280" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="footer" value="Document: Library Data Quality Architecture v1.0 | Created: November 2025 | Technology Stack: Python, SQL Server, Azure DevOps, GitHub, PowerBI" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#666666;" parent="1" vertex="1">
+          <mxGeometry x="300" y="800" width="800" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="staging" target="sql-server">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-2" value="Validation and Insert" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="HLASce6DREq6VaosLIM7-1">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.393;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="kanban" target="github">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="HLASce6DREq6VaosLIM7-18" value="Planning" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="HLASce6DREq6VaosLIM7-17">
+          <mxGeometry x="0.0105" y="1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
