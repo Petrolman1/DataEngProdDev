@@ -450,6 +450,48 @@ def handle_impossible_dates(df):
     return df
 
 
+def swap_reversed_dates(df):
+    """
+    Swap checkout and return dates if checkout date is after return date
+    This handles data entry errors where dates were entered in wrong order
+    
+    Args:
+        df: DataFrame to clean
+        
+    Returns:
+        DataFrame: Cleaned dataframe with swapped dates
+    """
+    swapped_count = 0
+    
+    for idx, row in df.iterrows():
+        # Only process if both dates are valid
+        if pd.notna(row['Book checkout']) and pd.notna(row['Book Returned']):
+            try:
+                checkout_str = str(row['Book checkout']).replace('"', '').strip()
+                return_str = str(row['Book Returned']).replace('"', '').strip()
+                
+                # Skip if either date is 'nan' or empty
+                if checkout_str == 'nan' or return_str == 'nan' or not checkout_str or not return_str:
+                    continue
+                
+                # Parse dates
+                checkout_date = datetime.strptime(checkout_str, '%d/%m/%Y')
+                return_date = datetime.strptime(return_str, '%d/%m/%Y')
+                
+                # If checkout is after return, swap them
+                if checkout_date > return_date:
+                    df.at[idx, 'Book checkout'] = return_str
+                    df.at[idx, 'Book Returned'] = checkout_str
+                    swapped_count += 1
+                    
+            except (ValueError, TypeError):
+                # Skip rows with unparseable dates
+                continue
+    
+    print(f"  Swapped {swapped_count} records where checkout/return dates were reversed")
+    return df
+
+
 def clean_dataframe(books_df):
     """
     Apply all cleaning functions to the dataframe
@@ -470,6 +512,7 @@ def clean_dataframe(books_df):
     books_df = clean_text_fields(books_df)
     books_df = fix_future_dates(books_df)
     books_df = handle_impossible_dates(books_df)
+    books_df = swap_reversed_dates(books_df)  # Fix reversed checkout/return dates
     
     print(f"Final record count: {len(books_df)}")
     print(f"Total records cleaned: {len(books_df)}")
@@ -536,11 +579,17 @@ def calculate_loan_metrics(df):
         pd.to_datetime(df['ReturnDate_ISO']) - df['ExpectedReturnDate']
     ).dt.days
     
+    # Set negative overdue days to 0 (book returned early or on time)
+    df['OverdueDays'] = df['OverdueDays'].apply(lambda x: 0 if pd.notna(x) and x < 0 else x)
+    
     # Flag overdue books (overdue days > 0)
     df['IsOverdue'] = df['OverdueDays'] > 0
     
     overdue_count = df['IsOverdue'].sum()
+    early_or_ontime_count = ((df['OverdueDays'] == 0) & df['OverdueDays'].notna()).sum()
+    
     print(f"  Identified {overdue_count} overdue book returns")
+    print(f"  Identified {early_or_ontime_count} on-time or early returns")
     
     return df
 
@@ -1240,7 +1289,7 @@ def main():
     books_transformed = calculate_loan_metrics(books_transformed)
     
     # ========================================================================
-    # STEP 5: LOAD TO SQL SERVER
+    # STEP 5: LOAD TO SQL SERVER (MANDATORY)
     # ========================================================================
     final_count = len(books_cleaned)
     report = generate_data_quality_report(errors, initial_count, final_count)
