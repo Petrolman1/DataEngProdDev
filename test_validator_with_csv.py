@@ -24,6 +24,17 @@ def main():
     print("Loading CSV files from data/ folder...\n")
     
     # Load the CSV files from data/ folder
+
+    # 🔍 DEBUG: list directory contents before loading
+    from pathlib import Path
+
+    print("Top-level contents:", os.listdir())
+    print("\nContents inside 'data/' folder:")
+    for p in Path('data').glob('*'):
+        print(" -", repr(p.name))
+
+# Now try to load the CSVs
+
     try:
         books_df = pd.read_csv('data/03_Library_Systembook.csv')
         customers_df = pd.read_csv('data/03_Library_SystemCustomers.csv')
