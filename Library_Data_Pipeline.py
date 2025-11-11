@@ -1,1346 +1,507 @@
 """
-Library Data Quality Analysis Pipeline
-Author: Geoff Daly
-Email: Geoff.daly@moto-way.co.uk
-Project: DataEngProdDev
+Library Data Quality Pipeline - Final Version
+Meets all AM Task requirements + Stretch Goal
 
-Description:
-    Automated data quality pipeline for library management system.
-    Validates, cleans, transforms, and loads library checkout data.
+Author: Geoff Daly (Enhanced)
+Date: 11/11/2025
 
-Usage:
-    python library_data_pipeline.py
 """
 
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import re
-import os
+import argparse
+import warnings
+warnings.filterwarnings('ignore')
 
 
 # ============================================================================
-# SECTION 1: DATA VALIDATION FUNCTIONS
+# SECTION 1: FUNCTIONS
 # ============================================================================
 
-def validate_date_format(date_string):
+def fileLoader(books_path, customers_path):
     """
-    Validate if a date string is in DD/MM/YYYY format
+    Load CSV files for processing
+    AM Task Requirement: fileLoader function
     
     Args:
-        date_string: String to validate
+        books_path: Path to books CSV file
+        customers_path: Path to customers CSV file
         
     Returns:
-        tuple: (is_valid, error_message)
+        tuple: (books_df, customers_df)
     """
-    if pd.isna(date_string):
-        return False, "Date is missing (NaN)"
-    
-    # Remove extra quotes if present
-    date_string = str(date_string).replace('"', '').strip()
-    
-    # Check format with regex: DD/MM/YYYY
-    pattern = r'^\d{2}/\d{2}/\d{4}$'
-    if not re.match(pattern, date_string):
-        return False, f"Invalid date format: {date_string}. Expected DD/MM/YYYY"
-    
-    return True, None
-
-
-def validate_date_range(date_string):
-    """
-    Validate that date is not in the future and is reasonable
-    
-    Args:
-        date_string: Date string in DD/MM/YYYY format
-        
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    if pd.isna(date_string):
-        return False, "Date is missing (NaN)"
-    
-    date_string = str(date_string).replace('"', '').strip()
+    print("\n📚 Loading data files...")
     
     try:
-        date_obj = datetime.strptime(date_string, '%d/%m/%Y')
-        current_date = datetime.now()
+        books_df = pd.read_csv(books_path)
+        customers_df = pd.read_csv(customers_path)
         
-        if date_obj > current_date:
-            return False, f"Future date detected: {date_string}"
+        print(f"  ✓ Books data loaded: {len(books_df)} rows")
+        print(f"  ✓ Customers data loaded: {len(customers_df)} rows")
         
-        if date_obj.year < 2000:
-            return False, f"Date too old: {date_string}"
+        return books_df, customers_df
         
-        return True, None
-        
-    except ValueError as e:
-        return False, f"Invalid date value: {date_string} - {str(e)}"
+    except FileNotFoundError as e:
+        print(f"  ❌ Error: File not found - {e}")
+        raise
+    except Exception as e:
+        print(f"  ❌ Error loading files: {e}")
+        raise
 
 
-def validate_impossible_dates(date_string):
+def duplicateCheck(df):
     """
-    Check for impossible dates like 32/05/2023
+    Check for and remove duplicate records
+    AM Task Requirement: duplicateCheck function
     
     Args:
-        date_string: Date string to validate
+        df: DataFrame to check for duplicates
         
     Returns:
-        tuple: (is_valid, error_message)
+        DataFrame: DataFrame with duplicates removed
     """
-    if pd.isna(date_string):
-        return False, "Date is missing (NaN)"
+    print("\n🔍 Checking for duplicates...")
     
-    date_string = str(date_string).replace('"', '').strip()
-    
-    try:
-        datetime.strptime(date_string, '%d/%m/%Y')
-        return True, None
-    except ValueError:
-        return False, f"Impossible date: {date_string}"
-
-
-def validate_return_after_checkout(checkout_date, return_date):
-    """
-    Validate that return date is after checkout date
-    
-    Args:
-        checkout_date: Checkout date string
-        return_date: Return date string
-        
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    if pd.isna(checkout_date) or pd.isna(return_date):
-        return True, None
-    
-    checkout_date = str(checkout_date).replace('"', '').strip()
-    return_date = str(return_date).replace('"', '').strip()
-    
-    try:
-        checkout_obj = datetime.strptime(checkout_date, '%d/%m/%Y')
-        return_obj = datetime.strptime(return_date, '%d/%m/%Y')
-        
-        if return_obj < checkout_obj:
-            return False, f"Return date ({return_date}) is before checkout date ({checkout_date})"
-        
-        return True, None
-        
-    except ValueError as e:
-        return False, f"Error parsing dates: {str(e)}"
-
-
-def validate_customer_reference(customer_id, customers_df):
-    """
-    Validate that customer ID exists in the customers table
-    
-    Args:
-        customer_id: Customer ID to validate
-        customers_df: DataFrame containing customer data
-        
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    if pd.isna(customer_id):
-        return False, "Customer ID is missing (NaN)"
-    
-    try:
-        customer_id = int(customer_id)
-    except (ValueError, TypeError):
-        return False, f"Invalid customer ID format: {customer_id}"
-    
-    if customer_id in customers_df['Customer ID'].values:
-        return True, None
-    else:
-        return False, f"Customer ID {customer_id} not found in customers table"
-
-
-def detect_duplicates(books_df):
-    """
-    Detect duplicate checkout records
-    
-    Args:
-        books_df: Books checkout DataFrame
-        
-    Returns:
-        list: List of duplicate row indices
-    """
-    duplicates = []
-    
-    for idx, row in books_df.iterrows():
-        if pd.isna(row['Books']) or pd.isna(row['Customer ID']):
-            continue
-            
-        matching_rows = books_df[
-            (books_df['Books'] == row['Books']) &
-            (books_df['Customer ID'] == row['Customer ID']) &
-            (books_df['Book checkout'] == row['Book checkout'])
-        ]
-        
-        if len(matching_rows) > 1 and idx != matching_rows.index[0]:
-            duplicates.append({
-                'row': idx + 2,
-                'book': row['Books'],
-                'customer_id': int(row['Customer ID']) if not pd.isna(row['Customer ID']) else 'N/A',
-                'checkout_date': row['Book checkout'],
-                'duplicate_of_row': matching_rows.index[0] + 2
-            })
-    
-    return duplicates
-
-
-def detect_formatting_issues(books_df):
-    """
-    Detect formatting issues like extra quotes and trailing spaces
-    
-    Args:
-        books_df: Books checkout DataFrame
-        
-    Returns:
-        list: List of formatting issues found
-    """
-    issues = []
-    
-    for idx, row in books_df.iterrows():
-        # Check for extra quotes in dates
-        if not pd.isna(row['Book checkout']) and '"""' in str(row['Book checkout']):
-            issues.append({
-                'row': idx + 2,
-                'field': 'Book checkout',
-                'issue': 'Extra quotes in date field'
-            })
-        
-        if not pd.isna(row['Book Returned']) and '"""' in str(row['Book Returned']):
-            issues.append({
-                'row': idx + 2,
-                'field': 'Book Returned',
-                'issue': 'Extra quotes in date field'
-            })
-        
-        # Check for trailing/leading spaces in book titles
-        if not pd.isna(row['Books']):
-            book_title = str(row['Books'])
-            if book_title != book_title.strip():
-                issues.append({
-                    'row': idx + 2,
-                    'field': 'Books',
-                    'issue': f'Trailing/leading spaces in title: "{book_title}"'
-                })
-    
-    return issues
-
-
-def validate_dataframe(books_df, customers_df):
-    """
-    Validate entire books dataframe and return detailed error report
-    
-    Args:
-        books_df: Books checkout DataFrame
-        customers_df: Customers DataFrame
-        
-    Returns:
-        dict: Dictionary containing validation results and errors
-    """
-    errors = {
-        'date_format_errors': [],
-        'date_range_errors': [],
-        'impossible_dates': [],
-        'logical_date_errors': [],
-        'customer_reference_errors': [],
-        'duplicates': [],
-        'formatting_issues': [],
-        'total_errors': 0
-    }
-    
-    print("Starting data validation...")
-    print(f"Total records to validate: {len(books_df)}")
-    
-    for idx, row in books_df.iterrows():
-        # Validate checkout date format
-        is_valid, error_msg = validate_date_format(row['Book checkout'])
-        if not is_valid:
-            errors['date_format_errors'].append({
-                'row': idx + 2,
-                'error': error_msg
-            })
-        
-        # Validate checkout date range
-        is_valid, error_msg = validate_date_range(row['Book checkout'])
-        if not is_valid:
-            errors['date_range_errors'].append({
-                'row': idx + 2,
-                'error': error_msg
-            })
-        
-        # Validate impossible dates
-        is_valid, error_msg = validate_impossible_dates(row['Book checkout'])
-        if not is_valid:
-            errors['impossible_dates'].append({
-                'row': idx + 2,
-                'error': error_msg
-            })
-        
-        # Validate return date (if exists)
-        if not pd.isna(row['Book Returned']):
-            is_valid, error_msg = validate_impossible_dates(row['Book Returned'])
-            if not is_valid:
-                errors['impossible_dates'].append({
-                    'row': idx + 2,
-                    'field': 'Return Date',
-                    'error': error_msg
-                })
-        
-        # Validate logical date order
-        is_valid, error_msg = validate_return_after_checkout(
-            row['Book checkout'], 
-            row['Book Returned']
-        )
-        if not is_valid:
-            errors['logical_date_errors'].append({
-                'row': idx + 2,
-                'error': error_msg
-            })
-        
-        # Validate customer reference
-        is_valid, error_msg = validate_customer_reference(
-            row['Customer ID'], 
-            customers_df
-        )
-        if not is_valid:
-            errors['customer_reference_errors'].append({
-                'row': idx + 2,
-                'error': error_msg
-            })
-    
-    # Detect duplicates
-    print("Checking for duplicates...")
-    errors['duplicates'] = detect_duplicates(books_df)
-    
-    # Detect formatting issues
-    print("Checking for formatting issues...")
-    errors['formatting_issues'] = detect_formatting_issues(books_df)
-    
-    # Calculate total errors
-    errors['total_errors'] = (
-        len(errors['date_format_errors']) +
-        len(errors['date_range_errors']) +
-        len(errors['impossible_dates']) +
-        len(errors['logical_date_errors']) +
-        len(errors['customer_reference_errors']) +
-        len(errors['duplicates']) +
-        len(errors['formatting_issues'])
-    )
-    
-    print(f"\nValidation complete!")
-    print(f"Total errors found: {errors['total_errors']}")
-    
-    return errors
-
-
-# ============================================================================
-# SECTION 2: DATA CLEANING FUNCTIONS
-# ============================================================================
-
-def remove_empty_rows(df):
-    """
-    Remove rows where all data columns are NaN
-    
-    Args:
-        df: DataFrame to clean
-        
-    Returns:
-        DataFrame: Cleaned dataframe
-    """
-    # Remove rows where Books and Customer ID are both NaN
     initial_count = len(df)
-    df_cleaned = df.dropna(subset=['Books', 'Customer ID'], how='all')
-    removed_count = initial_count - len(df_cleaned)
     
-    print(f"  Removed {removed_count} empty rows")
-    return df_cleaned
+    # Check for duplicates based on Books, Customer ID, and Checkout date
+    duplicates = df.duplicated(subset=['Books', 'Customer ID', 'Book checkout'], keep='first')
+    duplicate_count = duplicates.sum()
+    
+    # Remove duplicates
+    df_clean = df.drop_duplicates(subset=['Books', 'Customer ID', 'Book checkout'], keep='first')
+    
+    print(f"  ✓ Duplicates found: {duplicate_count}")
+    print(f"  ✓ Duplicates removed: {duplicate_count}")
+    print(f"  ✓ Records remaining: {len(df_clean)}")
+    
+    return df_clean
 
 
-def remove_duplicates(df):
+def naCheck(df):
     """
-    Remove duplicate records based on book, customer, and checkout date
+    Check for and remove records with missing critical data
+    AM Task Requirement: naCheck function
     
     Args:
-        df: DataFrame to clean
+        df: DataFrame to check for NaN values
         
     Returns:
-        DataFrame: Cleaned dataframe
+        DataFrame: DataFrame with NaN records removed
     """
+    print("\n🔍 Checking for missing values (NaN)...")
+    
     initial_count = len(df)
-    df_cleaned = df.drop_duplicates(subset=['Books', 'Customer ID', 'Book checkout'], keep='first')
-    removed_count = initial_count - len(df_cleaned)
     
-    print(f"  Removed {removed_count} duplicate records")
-    return df_cleaned
-
-
-def clean_date_formatting(df):
-    """
-    Remove extra quotes and clean date formatting
+    # Count NaN values in critical columns
+    na_books = df['Books'].isna().sum()
+    na_customers = df['Customer ID'].isna().sum()
     
-    Args:
-        df: DataFrame to clean
-        
-    Returns:
-        DataFrame: Cleaned dataframe
-    """
-    # Remove extra quotes from date columns
-    df['Book checkout'] = df['Book checkout'].astype(str).str.replace('"""', '').str.replace('"', '')
-    df['Book Returned'] = df['Book Returned'].astype(str).str.replace('"""', '').str.replace('"', '')
+    print(f"  • Missing book titles: {na_books}")
+    print(f"  • Missing customer IDs: {na_customers}")
     
-    print(f"  Cleaned date formatting (removed extra quotes)")
-    return df
+    # Remove rows where critical fields are NaN
+    df_clean = df.dropna(subset=['Books', 'Customer ID'], how='any')
+    
+    removed_count = initial_count - len(df_clean)
+    
+    print(f"  ✓ Records with NaN removed: {removed_count}")
+    print(f"  ✓ Records remaining: {len(df_clean)}")
+    
+    return df_clean
 
 
-def clean_text_fields(df):
+def dateCleaner(df):
     """
-    Remove trailing/leading whitespace from text fields
+    Clean and format date fields, fix common date issues
+    AM Task Requirement: dateCleaner function
     
     Args:
-        df: DataFrame to clean
+        df: DataFrame with date fields to clean
         
     Returns:
-        DataFrame: Cleaned dataframe
+        DataFrame: DataFrame with cleaned dates
     """
+    print("\n🧹 Cleaning date fields...")
+    
+    # Remove extra quotes from dates
+    df['Book checkout'] = df['Book checkout'].astype(str).str.replace('"', '', regex=False)
+    df['Book Returned'] = df['Book Returned'].astype(str).str.replace('"', '', regex=False)
+    
+    print("  ✓ Removed extra quotes from dates")
+    
+    # Fix obvious typos (2063 -> 2023)
+    df['Book checkout'] = df['Book checkout'].str.replace('2063', '2023')
+    df['Book checkout'] = df['Book checkout'].str.replace('2062', '2023')
+    
+    print("  ✓ Fixed future date typos (2063 -> 2023)")
+    
+    # Remove impossible dates (like 32/05/2023)
+    initial_count = len(df)
+    df = df[~df['Book checkout'].str.contains('32/', na=False)]
+    df = df[~df['Book checkout'].str.contains('31/02/', na=False)]
+    df = df[~df['Book checkout'].str.contains('31/04/', na=False)]
+    
+    removed = initial_count - len(df)
+    if removed > 0:
+        print(f"  ✓ Removed {removed} records with impossible dates")
+    
+    # Strip whitespace from book titles
     df['Books'] = df['Books'].astype(str).str.strip()
     
-    print(f"  Cleaned text fields (removed trailing spaces)")
-    return df
-
-
-def fix_future_dates(df):
-    """
-    Fix obvious date errors (e.g., 2063 -> 2023)
+    # Convert to datetime
+    try:
+        df['Book checkout'] = pd.to_datetime(df['Book checkout'], format='%d/%m/%Y', errors='coerce')
+        df['Book Returned'] = pd.to_datetime(df['Book Returned'], format='%d/%m/%Y', errors='coerce')
+        print("  ✓ Dates converted to datetime format")
+    except Exception as e:
+        print(f"  ⚠️  Warning during date conversion: {e}")
     
-    Args:
-        df: DataFrame to clean
-        
-    Returns:
-        DataFrame: Cleaned dataframe
-    """
-    # Fix 2063 -> 2023 (obvious typo)
-    df['Book checkout'] = df['Book checkout'].astype(str).str.replace('2063', '2023')
-    df['Book Returned'] = df['Book Returned'].astype(str).str.replace('2063', '2023')
-    
-    print(f"  Fixed future dates (2063 -> 2023)")
-    return df
-
-
-def handle_impossible_dates(df):
-    """
-    Remove or flag records with impossible dates
-    
-    Args:
-        df: DataFrame to clean
-        
-    Returns:
-        DataFrame: Cleaned dataframe
-    """
+    # Remove rows where date conversion failed
     initial_count = len(df)
-    
-    # Remove rows with impossible dates (can't be fixed)
-    df = df[~df['Book checkout'].astype(str).str.contains('32/', na=False)]
-    
-    removed_count = initial_count - len(df)
-    print(f"  Removed {removed_count} records with impossible dates")
-    return df
-
-
-def swap_reversed_dates(df):
-    """
-    Swap checkout and return dates if checkout date is after return date
-    This handles data entry errors where dates were entered in wrong order
-    
-    Args:
-        df: DataFrame to clean
-        
-    Returns:
-        DataFrame: Cleaned dataframe with swapped dates
-    """
-    swapped_count = 0
-    
-    for idx, row in df.iterrows():
-        # Only process if both dates are valid
-        if pd.notna(row['Book checkout']) and pd.notna(row['Book Returned']):
-            try:
-                checkout_str = str(row['Book checkout']).replace('"', '').strip()
-                return_str = str(row['Book Returned']).replace('"', '').strip()
-                
-                # Skip if either date is 'nan' or empty
-                if checkout_str == 'nan' or return_str == 'nan' or not checkout_str or not return_str:
-                    continue
-                
-                # Parse dates
-                checkout_date = datetime.strptime(checkout_str, '%d/%m/%Y')
-                return_date = datetime.strptime(return_str, '%d/%m/%Y')
-                
-                # If checkout is after return, swap them
-                if checkout_date > return_date:
-                    df.at[idx, 'Book checkout'] = return_str
-                    df.at[idx, 'Book Returned'] = checkout_str
-                    swapped_count += 1
-                    
-            except (ValueError, TypeError):
-                # Skip rows with unparseable dates
-                continue
-    
-    print(f"  Swapped {swapped_count} records where checkout/return dates were reversed")
-    return df
-
-
-def clean_dataframe(books_df):
-    """
-    Apply all cleaning functions to the dataframe
-    
-    Args:
-        books_df: Raw books DataFrame
-        
-    Returns:
-        DataFrame: Cleaned dataframe
-    """
-    print("\nStarting data cleaning...")
-    print(f"Initial record count: {len(books_df)}")
-    
-    # Apply cleaning steps in order
-    books_df = remove_empty_rows(books_df)
-    books_df = remove_duplicates(books_df)
-    books_df = clean_date_formatting(books_df)
-    books_df = clean_text_fields(books_df)
-    books_df = fix_future_dates(books_df)
-    books_df = handle_impossible_dates(books_df)
-    books_df = swap_reversed_dates(books_df)  # Fix reversed checkout/return dates
-    
-    print(f"Final record count: {len(books_df)}")
-    print(f"Total records cleaned: {len(books_df)}")
-    
-    return books_df
-
-
-# ============================================================================
-# SECTION 3: DATA TRANSFORMATION FUNCTIONS
-# ============================================================================
-
-def standardize_dates(df):
-    """
-    Convert dates from DD/MM/YYYY to YYYY-MM-DD (ISO format for SQL)
-    
-    Args:
-        df: DataFrame with dates to standardize
-        
-    Returns:
-        DataFrame: DataFrame with standardized dates
-    """
-    print("\nStandardizing dates to ISO format (YYYY-MM-DD)...")
-    
-    def convert_date(date_str):
-        if pd.isna(date_str) or date_str == 'nan' or date_str == '':
-            return None
-        try:
-            date_obj = datetime.strptime(str(date_str), '%d/%m/%Y')
-            return date_obj.strftime('%Y-%m-%d')
-        except:
-            return None
-    
-    df['CheckoutDate_ISO'] = df['Book checkout'].apply(convert_date)
-    df['ReturnDate_ISO'] = df['Book Returned'].apply(convert_date)
-    
-    print(f"  Converted {df['CheckoutDate_ISO'].notna().sum()} checkout dates")
-    print(f"  Converted {df['ReturnDate_ISO'].notna().sum()} return dates")
+    df = df.dropna(subset=['Book checkout'])
+    removed = initial_count - len(df)
+    if removed > 0:
+        print(f"  ✓ Removed {removed} records with invalid dates")
     
     return df
 
 
-def calculate_loan_metrics(df):
+def dataEnrich(df):
     """
-    Calculate loan duration and overdue status
+    Calculate days between checkout and return dates, add enrichment fields
+    AM Task Requirement: dataEnrich() - Calculate days between dates
     
     Args:
         df: DataFrame with date columns
         
     Returns:
-        DataFrame: DataFrame with calculated metrics
+        DataFrame: Enriched DataFrame with calculated fields
     """
-    print("\nCalculating loan metrics...")
+    print("\n📊 Enriching data with calculated fields...")
     
-    # Calculate expected return date (checkout + 14 days)
-    df['ExpectedReturnDate'] = pd.to_datetime(df['CheckoutDate_ISO']) + pd.Timedelta(days=14)
+    # REQUIRED: Calculate loan duration (days between dates)
+    df['loan_duration'] = (df['Book Returned'] - df['Book checkout']).dt.days
+    print("  ✓ Calculated loan_duration (days between checkout and return)")
     
-    # Calculate actual loan duration
-    df['ActualLoanDays'] = (
-        pd.to_datetime(df['ReturnDate_ISO']) - pd.to_datetime(df['CheckoutDate_ISO'])
-    ).dt.days
+    # Remove negative loan durations (return before checkout)
+    initial_count = len(df)
+    df = df[df['loan_duration'] >= 0]
+    removed = initial_count - len(df)
+    if removed > 0:
+        print(f"  ✓ Removed {removed} records with negative loan duration")
+    
+    # Additional enrichments for better analysis
+    df['checkout_date_iso'] = df['Book checkout'].dt.strftime('%Y-%m-%d')
+    df['return_date_iso'] = df['Book Returned'].dt.strftime('%Y-%m-%d')
+    
+    # Calculate expected return date (14 days from checkout)
+    df['expected_return_date'] = df['Book checkout'] + pd.Timedelta(days=14)
     
     # Calculate overdue days
-    df['OverdueDays'] = (
-        pd.to_datetime(df['ReturnDate_ISO']) - df['ExpectedReturnDate']
-    ).dt.days
+    df['overdue_days'] = (df['Book Returned'] - df['expected_return_date']).dt.days
     
-    # Set negative overdue days to 0 (book returned early or on time)
-    df['OverdueDays'] = df['OverdueDays'].apply(lambda x: 0 if pd.notna(x) and x < 0 else x)
+    # Flag overdue books
+    df['is_overdue'] = df['overdue_days'] > 0
     
-    # Flag overdue books (overdue days > 0)
-    df['IsOverdue'] = df['OverdueDays'] > 0
+    # Statistics
+    avg_duration = df['loan_duration'].mean()
+    overdue_count = df['is_overdue'].sum()
+    overdue_pct = (overdue_count / len(df) * 100) if len(df) > 0 else 0
     
-    overdue_count = df['IsOverdue'].sum()
-    early_or_ontime_count = ((df['OverdueDays'] == 0) & df['OverdueDays'].notna()).sum()
+    print(f"  ✓ Added 6 calculated fields:")
+    print(f"    • loan_duration (required)")
+    print(f"    • checkout_date_iso (SQL compatible)")
+    print(f"    • return_date_iso (SQL compatible)")
+    print(f"    • expected_return_date")
+    print(f"    • overdue_days")
+    print(f"    • is_overdue")
     
-    print(f"  Identified {overdue_count} overdue book returns")
-    print(f"  Identified {early_or_ontime_count} on-time or early returns")
+    print(f"\n  📈 Statistics:")
+    print(f"    • Average loan duration: {avg_duration:.1f} days")
+    print(f"    • Overdue books: {overdue_count} ({overdue_pct:.1f}%)")
     
     return df
 
 
-def generate_data_quality_report(errors, initial_count, final_count):
-    """
-    Generate a summary report of data quality issues and cleaning results
+# ============================================================================
+# SECTION 2: DATA ENGINEERING METRICS TRACKING
+# ============================================================================
+
+class DEMetrics:
+    """Track Data Engineering metrics throughout the pipeline"""
     
-    Args:
-        errors: Dictionary of validation errors
-        initial_count: Initial record count
-        final_count: Final record count after cleaning
+    def __init__(self):
+        self.initial_rows = 0
+        self.rows_after_duplicates = 0
+        self.rows_after_na = 0
+        self.rows_after_cleaning = 0
+        self.final_rows = 0
+        self.duplicates_removed = 0
+        self.na_removed = 0
+        self.invalid_dates_removed = 0
+        self.negative_duration_removed = 0
+        self.timestamp = datetime.now()
+    
+    def calculate_totals(self):
+        """Calculate total drops"""
+        self.total_dropped = self.initial_rows - self.final_rows
+        self.retention_rate = (self.final_rows / self.initial_rows * 100) if self.initial_rows > 0 else 0
+    
+    def print_summary(self):
+        """Print DE metrics summary"""
+        self.calculate_totals()
         
-    Returns:
-        dict: Summary report
-    """
-    report = {
-        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'initial_records': initial_count,
-        'final_records': final_count,
-        'records_removed': initial_count - final_count,
-        'errors_found': errors['total_errors'],
-        'error_breakdown': {
-            'date_format_errors': len(errors['date_format_errors']),
-            'date_range_errors': len(errors['date_range_errors']),
-            'impossible_dates': len(errors['impossible_dates']),
-            'logical_date_errors': len(errors['logical_date_errors']),
-            'customer_reference_errors': len(errors['customer_reference_errors']),
-            'duplicates': len(errors['duplicates']),
-            'formatting_issues': len(errors['formatting_issues'])
-        },
-        'data_quality_score': round((final_count / initial_count) * 100, 2) if initial_count > 0 else 0
-    }
+        print("\n" + "="*70)
+        print("DATA ENGINEERING METRICS SUMMARY".center(70))
+        print("="*70)
+        print(f"\n📊 Processing Metrics:")
+        print(f"  Initial records loaded:        {self.initial_rows}")
+        print(f"  After duplicate removal:       {self.rows_after_duplicates} (-{self.duplicates_removed})")
+        print(f"  After NaN removal:             {self.rows_after_na} (-{self.na_removed})")
+        print(f"  After date cleaning:           {self.rows_after_cleaning} (-{self.invalid_dates_removed})")
+        print(f"  After enrichment:              {self.final_rows} (-{self.negative_duration_removed})")
+        print(f"\n📈 Overall Summary:")
+        print(f"  Total records dropped:         {self.total_dropped}")
+        print(f"  Final records:                 {self.final_rows}")
+        print(f"  Retention rate:                {self.retention_rate:.1f}%")
+        print("="*70)
     
-    return report
+    def to_dict(self):
+        """Convert metrics to dictionary for SQL insert"""
+        self.calculate_totals()
+        return {
+            'timestamp': self.timestamp,
+            'initial_records': self.initial_rows,
+            'duplicates_removed': self.duplicates_removed,
+            'na_removed': self.na_removed,
+            'invalid_dates_removed': self.invalid_dates_removed,
+            'negative_duration_removed': self.negative_duration_removed,
+            'total_dropped': self.total_dropped,
+            'final_records': self.final_rows,
+            'retention_rate': f"{self.retention_rate:.1f}%"
+        }
 
 
 # ============================================================================
-# SECTION 4: SQL SERVER LOADING FUNCTIONS
+# SECTION 3: SQL SERVER INTEGRATION
 # ============================================================================
 
-def get_sql_connection(server='localhost', database='LibraryDataQuality', create_db_if_not_exists=True):
+def write_to_sql_server(books_df, customers_df, metrics, server='localhost', database='DE5_Module5'):
     """
-    Create connection to SQL Server database
-    Creates the database automatically if it doesn't exist
+    Write cleaned data to SQL Server (SSMS)
+    AM Task Requirement: Write to local SQL Server
     
     Args:
-        server: SQL Server instance name (default: localhost)
-        database: Database name (default: LibraryDataQuality)
-        create_db_if_not_exists: If True, creates database if it doesn't exist
-        
-    Returns:
-        pyodbc connection object or None if failed
+        books_df: Cleaned books DataFrame
+        customers_df: Cleaned customers DataFrame
+        metrics: DEMetrics object
+        server: SQL Server instance name
+        database: Database name
     """
+    print("\n" + "="*70)
+    print("LOADING DATA TO SQL SERVER".center(70))
+    print("="*70)
+    
     try:
-        import pyodbc
+        from sqlalchemy import create_engine
         
-        # Try multiple ODBC drivers (18, 17, or generic)
-        drivers = [
-            "ODBC Driver 18 for SQL Server",
-            "ODBC Driver 17 for SQL Server",
-            "SQL Server"
-        ]
+        # Create connection string with Windows Authentication
+        connection_string = f'mssql+pyodbc://@{server}/{database}?trusted_connection=yes&driver=ODBC+Driver+17+for+SQL+Server'
         
-        working_driver = None
-        for driver in drivers:
-            try:
-                # Test connection to master database
-                test_conn_string = (
-                    f"Driver={{{driver}}};"
-                    f"Server={server};"
-                    f"Database=master;"
-                    f"Trusted_Connection=yes;"
-                    f"TrustServerCertificate=yes;"
-                )
-                test_conn = pyodbc.connect(test_conn_string, timeout=5)
-                test_conn.close()
-                working_driver = driver
-                print(f"Using ODBC driver: {driver}")
-                break
-            except:
-                continue
+        # Create engine
+        engine = create_engine(connection_string)
         
-        if not working_driver:
-            raise Exception("No compatible ODBC driver found. Install ODBC Driver 17 or 18 for SQL Server.")
+        print(f"\n✓ Connected to SQL Server: {server}/{database}")
         
-        # Try to connect to target database
-        conn_string = (
-            f"Driver={{{working_driver}}};"
-            f"Server={server};"
-            f"Database={database};"
-            f"Trusted_Connection=yes;"
-            f"TrustServerCertificate=yes;"
-        )
+        # Write books data
+        print("\n📚 Writing books data...")
+        books_df.to_sql('books_bronze', con=engine, if_exists='replace', index=False)
+        print(f"  ✓ Loaded {len(books_df)} records to 'books_bronze' table")
         
-        try:
-            conn = pyodbc.connect(conn_string)
-            print(f"✓ Connected to SQL Server: {server}/{database}")
-            return conn
-            
-        except pyodbc.Error as db_error:
-            # Check if database doesn't exist
-            error_msg = str(db_error).lower()
-            if create_db_if_not_exists and ("cannot open database" in error_msg or 
-                                            "database" in error_msg and "does not exist" in error_msg):
-                print(f"⚠️  Database '{database}' not found. Creating it...")
-                
-                # Connect to master database
-                master_conn_string = (
-                    f"Driver={{{working_driver}}};"
-                    f"Server={server};"
-                    f"Database=master;"
-                    f"Trusted_Connection=yes;"
-                    f"TrustServerCertificate=yes;"
-                )
-                
-                master_conn = pyodbc.connect(master_conn_string)
-                master_conn.autocommit = True
-                cursor = master_conn.cursor()
-                
-                try:
-                    # Check if database exists
-                    cursor.execute(f"SELECT database_id FROM sys.databases WHERE name = '{database}'")
-                    if not cursor.fetchone():
-                        # Create database
-                        cursor.execute(f"CREATE DATABASE [{database}]")
-                        print(f"✓ Created database: {database}")
-                    else:
-                        print(f"✓ Database {database} already exists")
-                except Exception as create_error:
-                    print(f"✗ Error creating database: {str(create_error)}")
-                    cursor.close()
-                    master_conn.close()
-                    return None
-                
-                cursor.close()
-                master_conn.close()
-                
-                # Now connect to the new database
-                conn = pyodbc.connect(conn_string)
-                print(f"✓ Connected to SQL Server: {server}/{database}")
-                return conn
-            else:
-                raise
+        # Write customers data
+        print("\n👥 Writing customers data...")
+        customers_df.to_sql('customers_bronze', con=engine, if_exists='replace', index=False)
+        print(f"  ✓ Loaded {len(customers_df)} records to 'customers_bronze' table")
+        
+        # Write DE metrics log
+        print("\n📊 Writing DE metrics log...")
+        metrics_df = pd.DataFrame([metrics.to_dict()])
+        metrics_df.to_sql('DE_metrics_log', con=engine, if_exists='append', index=False)
+        print(f"  ✓ Logged metrics to 'DE_metrics_log' table")
+        
+        print("\n" + "="*70)
+        print("✅ SQL SERVER LOAD COMPLETE".center(70))
+        print("="*70)
+        
+        return True
         
     except ImportError:
-        print("✗ ERROR: pyodbc not installed")
-        print("   Install with: pip install pyodbc")
-        return None
-    except pyodbc.Error as e:
-        print(f"✗ ERROR: Could not connect to SQL Server")
-        print(f"   Error: {str(e)}")
-        print("\nTroubleshooting:")
-        print("  1. Make sure SQL Server is running")
-        print("  2. Try different server names:")
-        print("     - localhost")
-        print("     - localhost\\SQLEXPRESS")
-        print("     - (localdb)\\MSSQLLocalDB")
-        print("     - .\\SQLEXPRESS")
-        print("  3. Verify Windows Authentication is enabled")
-        print("  4. Install ODBC Driver 17 or 18 for SQL Server")
-        print("  5. Check SQL Server Configuration Manager")
-        return None
-    except Exception as e:
-        print(f"✗ ERROR: Unexpected error: {str(e)}")
-        return None
-
-
-def create_tables_if_not_exist(conn):
-    """
-    Create necessary tables in SQL Server if they don't exist
-    
-    Args:
-        conn: pyodbc connection object
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        cursor = conn.cursor()
-        
-        print("\nCreating tables if they don't exist...")
-        
-        # Create Books table
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Books')
-            BEGIN
-                CREATE TABLE Books (
-                    BookID INT PRIMARY KEY IDENTITY(1,1),
-                    BookTitle NVARCHAR(255) NOT NULL,
-                    CreatedDate DATETIME DEFAULT GETDATE()
-                )
-            END
-        """)
-        print("  ✓ Books table ready")
-        
-        # Create Customers table
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Customers')
-            BEGIN
-                CREATE TABLE Customers (
-                    CustomerID INT PRIMARY KEY,
-                    CustomerName NVARCHAR(255) NOT NULL,
-                    CreatedDate DATETIME DEFAULT GETDATE()
-                )
-            END
-        """)
-        print("  ✓ Customers table ready")
-        
-        # Create BookCheckouts table
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BookCheckouts')
-            BEGIN
-                CREATE TABLE BookCheckouts (
-                    CheckoutID INT PRIMARY KEY IDENTITY(1,1),
-                    BookTitle NVARCHAR(255) NOT NULL,
-                    CustomerID INT NOT NULL,
-                    CheckoutDate DATE NOT NULL,
-                    ReturnDate DATE NULL,
-                    ExpectedReturnDate DATE NULL,
-                    ActualLoanDays INT NULL,
-                    OverdueDays INT NULL,
-                    IsOverdue BIT DEFAULT 0,
-                    CreatedDate DATETIME DEFAULT GETDATE(),
-                    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID)
-                )
-            END
-        """)
-        print("  ✓ BookCheckouts table ready")
-        
-        # Create DataQualityLog table
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'DataQualityLog')
-            BEGIN
-                CREATE TABLE DataQualityLog (
-                    LogID INT PRIMARY KEY IDENTITY(1,1),
-                    BatchID UNIQUEIDENTIFIER DEFAULT NEWID(),
-                    SourceFile NVARCHAR(255),
-                    RecordsProcessed INT,
-                    RecordsCleaned INT,
-                    RecordsInserted INT,
-                    ErrorsFound INT,
-                    DataQualityScore DECIMAL(5,2),
-                    ProcessingDate DATETIME DEFAULT GETDATE(),
-                    Status NVARCHAR(50)
-                )
-            END
-        """)
-        print("  ✓ DataQualityLog table ready")
-        
-        # Create ErrorLog table for detailed error tracking
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ErrorLog')
-            BEGIN
-                CREATE TABLE ErrorLog (
-                    ErrorID INT PRIMARY KEY IDENTITY(1,1),
-                    BatchID UNIQUEIDENTIFIER,
-                    ErrorType NVARCHAR(100),
-                    ErrorMessage NVARCHAR(MAX),
-                    RowNumber INT,
-                    LogDate DATETIME DEFAULT GETDATE()
-                )
-            END
-        """)
-        print("  ✓ ErrorLog table ready")
-        
-        conn.commit()
-        print("✓ All tables created successfully\n")
-        return True
-        
-    except Exception as e:
-        print(f"✗ Error creating tables: {str(e)}")
+        print("\n⚠️  sqlalchemy not installed. Install with: pip install sqlalchemy pyodbc")
+        print("   Skipping SQL Server load...")
         return False
-
-
-def load_data_to_sql_server(books_df, customers_df, report, server='localhost', database='LibraryDataQuality'):
-    """
-    Main function to load all data to SQL Server
-    Automatically creates database and tables if they don't exist
-    
-    Args:
-        books_df: Cleaned books DataFrame
-        customers_df: Customers DataFrame
-        report: Data quality report dictionary
-        server: SQL Server instance name
-        database: Database name
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    print_section_header("LOADING DATA TO SQL SERVER")
-    
-    # Connect to SQL Server (will create database if needed)
-    conn = get_sql_connection(server, database, create_db_if_not_exists=True)
-    if conn is None:
-        print("\n⚠️  Skipping SQL Server loading (connection failed)")
-        print("   Data has been saved to CSV file instead")
-        return False
-    
-    try:
-        # Create tables if they don't exist
-        if not create_tables_if_not_exist(conn):
-            print("✗ Failed to create tables")
-            conn.close()
-            return False
-        
-        # Load data
-        print("Loading data to tables...")
-        books_inserted = load_books_to_sql(books_df, conn)
-        customers_inserted = load_customers_to_sql(customers_df, conn)
-        checkouts_inserted = load_checkouts_to_sql(books_df, conn)
-        
-        total_inserted = books_inserted + customers_inserted + checkouts_inserted
-        
-        # Log to DataQualityLog table with BatchID
-        import uuid
-        batch_id = str(uuid.uuid4())
-        log_to_data_quality_table(
-            conn,
-            batch_id,
-            '03_Library_Systembook.csv',
-            report['initial_records'],
-            report['final_records'],
-            checkouts_inserted,
-            report['errors_found'],
-            report['data_quality_score'],
-            'Completed'
-        )
-        
-        # Close connection
-        conn.close()
-        
-        print(f"\n✅ Successfully loaded data to SQL Server!")
-        print(f"   Total records inserted: {total_inserted}")
-        print(f"     - Unique books: {books_inserted}")
-        print(f"     - Customers: {customers_inserted}")
-        print(f"     - Checkouts: {checkouts_inserted}")
-        print(f"   Batch ID: {batch_id}")
-        
-        return True
         
     except Exception as e:
-        print(f"\n✗ Error loading data to SQL Server: {str(e)}")
-        if conn:
-            conn.close()
-        return False
-
-
-def log_to_data_quality_table(conn, batch_id, source_file, records_processed, records_cleaned, 
-                               records_inserted, errors_found, data_quality_score, status):
-    """
-    Log processing results to DataQualityLog table
-    
-    Args:
-        conn: pyodbc connection object
-        batch_id: Unique identifier for this batch
-        source_file: Name of source CSV file
-        records_processed: Total records processed
-        records_cleaned: Records after cleaning
-        records_inserted: Records successfully inserted
-        errors_found: Total errors found
-        data_quality_score: Data quality percentage
-        status: Processing status (Completed/Failed)
-    """
-    try:
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            INSERT INTO DataQualityLog 
-            (BatchID, SourceFile, RecordsProcessed, RecordsCleaned, RecordsInserted, 
-             ErrorsFound, DataQualityScore, Status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (batch_id, source_file, records_processed, records_cleaned, records_inserted, 
-              errors_found, data_quality_score, status))
-        
-        conn.commit()
-        print(f"\n✓ Logged processing results to DataQualityLog table")
-        
-    except Exception as e:
-        print(f"⚠️  Warning: Could not log to DataQualityLog: {str(e)}")
-
-
-def load_books_to_sql(df, conn):
-    """
-    Load book data to SQL Server
-    
-    Args:
-        df: DataFrame containing book data
-        conn: pyodbc connection object
-        
-    Returns:
-        int: Number of records inserted
-    """
-    cursor = conn.cursor()
-    
-    print("\nLoading books to SQL Server...")
-    
-    # Get unique books
-    unique_books = df['Books'].unique()
-    inserted = 0
-    
-    for book_title in unique_books:
-        if pd.notna(book_title) and book_title != 'nan':
-            # Check if book already exists
-            cursor.execute(
-                "SELECT COUNT(*) FROM Books WHERE BookTitle = ?",
-                (book_title,)
-            )
-            exists = cursor.fetchone()[0]
-            
-            if not exists:
-                cursor.execute(
-                    "INSERT INTO Books (BookTitle) VALUES (?)",
-                    (book_title,)
-                )
-                inserted += 1
-    
-    conn.commit()
-    print(f"  âœ“ Inserted {inserted} unique books")
-    return inserted
-
-
-def load_customers_to_sql(customers_df, conn):
-    """
-    Load customer data to SQL Server
-    
-    Args:
-        customers_df: DataFrame containing customer data
-        conn: pyodbc connection object
-        
-    Returns:
-        int: Number of records inserted
-    """
-    cursor = conn.cursor()
-    
-    print("\nLoading customers to SQL Server...")
-    inserted = 0
-    
-    for idx, row in customers_df.iterrows():
-        if pd.notna(row['Customer ID']) and pd.notna(row['Customer Name']):
-            customer_id = int(row['Customer ID'])
-            customer_name = row['Customer Name']
-            
-            # Check if customer already exists
-            cursor.execute(
-                "SELECT COUNT(*) FROM Customers WHERE CustomerID = ?",
-                (customer_id,)
-            )
-            exists = cursor.fetchone()[0]
-            
-            if not exists:
-                cursor.execute(
-                    "INSERT INTO Customers (CustomerID, CustomerName) VALUES (?, ?)",
-                    (customer_id, customer_name)
-                )
-                inserted += 1
-    
-    conn.commit()
-    print(f"  âœ“ Inserted {inserted} customers")
-    return inserted
-
-
-def load_checkouts_to_sql(df, conn):
-    """
-    Load checkout data to SQL Server
-    
-    Args:
-        df: DataFrame containing checkout data
-        conn: pyodbc connection object
-        
-    Returns:
-        int: Number of records inserted
-    """
-    cursor = conn.cursor()
-    
-    print("\nLoading checkouts to SQL Server...")
-    inserted = 0
-    
-    for idx, row in df.iterrows():
-        if pd.notna(row['Books']) and pd.notna(row['Customer ID']):
-            try:
-                cursor.execute("""
-                    INSERT INTO BookCheckouts 
-                    (BookTitle, CustomerID, CheckoutDate, ReturnDate, ExpectedReturnDate, 
-                     ActualLoanDays, OverdueDays, IsOverdue)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    row['Books'],
-                    int(row['Customer ID']),
-                    row['CheckoutDate_ISO'],
-                    row['ReturnDate_ISO'] if pd.notna(row['ReturnDate_ISO']) else None,
-                    row['ExpectedReturnDate'].strftime('%Y-%m-%d') if pd.notna(row['ExpectedReturnDate']) else None,
-                    int(row['ActualLoanDays']) if pd.notna(row['ActualLoanDays']) else None,
-                    int(row['OverdueDays']) if pd.notna(row['OverdueDays']) else None,
-                    bool(row['IsOverdue']) if pd.notna(row['IsOverdue']) else False
-                ))
-                inserted += 1
-            except Exception as e:
-                print(f"  Warning: Could not insert row {idx}: {str(e)}")
-                continue
-    
-    conn.commit()
-    print(f"  âœ“ Inserted {inserted} checkout records")
-    return inserted
-
-
-def log_to_data_quality_table(conn, source_file, records_processed, records_cleaned, 
-                               records_inserted, errors_found, status):
-    """
-    Log processing results to DataQualityLog table
-    
-    Args:
-        conn: pyodbc connection object
-        source_file: Name of source CSV file
-        records_processed: Total records processed
-        records_cleaned: Records after cleaning
-        records_inserted: Records successfully inserted
-        errors_found: Total errors found
-        status: Processing status (Completed/Failed)
-    """
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        INSERT INTO DataQualityLog 
-        (SourceFile, RecordsProcessed, RecordsCleaned, RecordsInserted, ErrorsFound, Status)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (source_file, records_processed, records_cleaned, records_inserted, errors_found, status))
-    
-    conn.commit()
-    print(f"\nâœ“ Logged processing results to DataQualityLog table")
-
-
-def load_data_to_sql_server(books_df, customers_df, report, server='localhost', database='LibraryDataQuality'):
-    """
-    Main function to load all data to SQL Server
-    
-    Args:
-        books_df: Cleaned books DataFrame
-        customers_df: Customers DataFrame
-        report: Data quality report dictionary
-        server: SQL Server instance name
-        database: Database name
-        
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    print_section_header("LOADING DATA TO SQL SERVER")
-    
-    # Connect to SQL Server
-    conn = get_sql_connection(server, database)
-    if conn is None:
-        print("\nâš ï¸  Skipping SQL Server loading (connection failed)")
-        print("   Data has been saved to CSV file instead")
-        return False
-    
-    try:
-        # Create tables
-        create_tables_if_not_exist(conn)
-        
-        # Load data
-        books_inserted = load_books_to_sql(books_df, conn)
-        customers_inserted = load_customers_to_sql(customers_df, conn)
-        checkouts_inserted = load_checkouts_to_sql(books_df, conn)
-        
-        total_inserted = books_inserted + customers_inserted + checkouts_inserted
-        
-        # Log to DataQualityLog table
-        log_to_data_quality_table(
-            conn,
-            '03_Library_Systembook.csv',
-            report['initial_records'],
-            report['final_records'],
-            checkouts_inserted,
-            report['errors_found'],
-            'Completed'
-        )
-        
-        # Close connection
-        conn.close()
-        
-        print(f"\nâœ… Successfully loaded data to SQL Server!")
-        print(f"   Total records inserted: {total_inserted}")
-        print(f"     - Books: {books_inserted}")
-        print(f"     - Customers: {customers_inserted}")
-        print(f"     - Checkouts: {checkouts_inserted}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"\nâŒ Error loading data to SQL Server: {str(e)}")
-        if conn:
-            conn.close()
+        print(f"\n❌ Error writing to SQL Server: {e}")
+        print("   Troubleshooting:")
+        print("   1. Ensure SQL Server is running")
+        print("   2. Check database name exists")
+        print("   3. Verify ODBC Driver 17 for SQL Server is installed")
+        print("   4. Confirm Windows Authentication is enabled")
         return False
 
 
 # ============================================================================
-# SECTION 5: MAIN EXECUTION
+# SECTION 4: MAIN PIPELINE
 # ============================================================================
 
-def print_section_header(title):
-    """Print a formatted section header"""
+def run_pipeline(books_path, customers_path, save_to_sql=True, server='localhost', database='DE5_Module5'):
+    """
+    Run the complete data quality pipeline
+    
+    Args:
+        books_path: Path to books CSV file
+        customers_path: Path to customers CSV file
+        save_to_sql: Whether to save to SQL Server
+        server: SQL Server instance name
+        database: Database name
+        
+    Returns:
+        tuple: (books_df, customers_df, metrics)
+    """
     print("\n" + "="*70)
-    print(title.center(70))
+    print("LIBRARY DATA QUALITY PIPELINE - STARTING".center(70))
     print("="*70)
-
-
-def print_validation_summary(errors):
-    """Print a summary of validation errors"""
-    print("\n" + "-"*70)
-    print("VALIDATION SUMMARY")
-    print("-"*70)
-    print(f"  â€¢ Date format errors: {len(errors['date_format_errors'])}")
-    print(f"  â€¢ Date range errors: {len(errors['date_range_errors'])}")
-    print(f"  â€¢ Impossible dates: {len(errors['impossible_dates'])}")
-    print(f"  â€¢ Logical date errors: {len(errors['logical_date_errors'])}")
-    print(f"  â€¢ Missing customer refs: {len(errors['customer_reference_errors'])}")
-    print(f"  â€¢ Duplicate records: {len(errors['duplicates'])}")
-    print(f"  â€¢ Formatting issues: {len(errors['formatting_issues'])}")
-    print(f"\n  TOTAL ERRORS: {errors['total_errors']}")
-    print("-"*70)
-
-
-def print_final_report(report):
-    """Print the final data quality report"""
-    print_section_header("FINAL DATA QUALITY REPORT")
-    print(f"\nProcessing Timestamp: {report['timestamp']}")
-    print(f"\nRecords Summary:")
-    print(f"  Initial records: {report['initial_records']}")
-    print(f"  Final records: {report['final_records']}")
-    print(f"  Records removed: {report['records_removed']}")
-    print(f"\nErrors Found: {report['errors_found']}")
-    for error_type, count in report['error_breakdown'].items():
-        print(f"  â€¢ {error_type.replace('_', ' ').title()}: {count}")
-    print(f"\nData Quality Score: {report['data_quality_score']}%")
+    
+    # Initialize metrics tracker
+    metrics = DEMetrics()
+    
+    # Step 1: Load data (fileLoader)
+    books_df, customers_df = fileLoader(books_path, customers_path)
+    metrics.initial_rows = len(books_df)
+    
+    # Step 2: Remove duplicates (duplicateCheck)
+    books_df = duplicateCheck(books_df)
+    metrics.rows_after_duplicates = len(books_df)
+    metrics.duplicates_removed = metrics.initial_rows - metrics.rows_after_duplicates
+    
+    # Step 3: Remove NaN values (naCheck)
+    books_df = naCheck(books_df)
+    metrics.rows_after_na = len(books_df)
+    metrics.na_removed = metrics.rows_after_duplicates - metrics.rows_after_na
+    
+    # Step 4: Clean dates (dateCleaner)
+    books_df = dateCleaner(books_df)
+    metrics.rows_after_cleaning = len(books_df)
+    metrics.invalid_dates_removed = metrics.rows_after_na - metrics.rows_after_cleaning
+    
+    # Step 5: Enrich data (dataEnrich)
+    books_df = dataEnrich(books_df)
+    metrics.final_rows = len(books_df)
+    metrics.negative_duration_removed = metrics.rows_after_cleaning - metrics.final_rows
+    
+    # Step 6: Clean customers data
+    print("\n👥 Cleaning customers data...")
+    customers_df = customers_df.dropna()
+    print(f"  ✓ Valid customers: {len(customers_df)}")
+    
+    # Step 7: Print metrics
+    metrics.print_summary()
+    
+    # Step 8: Save to CSV
+    print("\n💾 Saving cleaned data to CSV files...")
+    books_df.to_csv('books_cleaned_final.csv', index=False)
+    customers_df.to_csv('customers_cleaned_final.csv', index=False)
+    print("  ✓ Saved: books_cleaned_final.csv")
+    print("  ✓ Saved: customers_cleaned_final.csv")
+    
+    # Step 9: Write to SQL Server (if enabled)
+    if save_to_sql:
+        write_to_sql_server(books_df, customers_df, metrics, server, database)
+    
+    print("\n" + "="*70)
+    print("✅ PIPELINE COMPLETE".center(70))
     print("="*70)
+    
+    return books_df, customers_df, metrics
 
+
+# ============================================================================
+# SECTION 5: COMMAND LINE INTERFACE
+# ============================================================================
 
 def main():
     """
-    Main execution function - runs the complete data pipeline
+    Main function with argparse for command-line execution
+    argparse library for CLI with file path specification
     """
-    print_section_header("LIBRARY DATA QUALITY ANALYSIS PIPELINE")
-    print(f"Author: Geoff Daly")
-    print(f"Project: DataEngProdDev")
-    print(f"Current Directory: {os.getcwd()}")
+    parser = argparse.ArgumentParser(
+        description='Library Data Quality Pipeline - Process and clean library data',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic usage with default paths:
+  python %(prog)s
+  
+  # Specify custom file paths:
+  python %(prog)s --books data/books.csv --customers data/customers.csv
+  
+  # Specify SQL Server details:
+  python %(prog)s --server localhost --database LibraryDB
+  
+  # Skip SQL Server load:
+  python %(prog)s --no-sql
+        """
+    )
     
-    # ========================================================================
-    # STEP 1: LOAD DATA
-    # ========================================================================
-    print_section_header("STEP 1: LOADING DATA")
+    # File path arguments
+    parser.add_argument(
+        '--books',
+        default='data/03_Library_Systembook.csv',
+        help='Path to books CSV file (default: data/03_Library_Systembook.csv)'
+    )
     
-    try:
-        # Try both Data/ and data/ folder names
-        if os.path.exists('Data'):
-            data_folder = 'Data'
-        elif os.path.exists('data'):
-            data_folder = 'data'
-        else:
-            raise FileNotFoundError("Neither 'Data' nor 'data' folder found")
-        
-        books_df = pd.read_csv(f'{data_folder}/03_Library_Systembook.csv')
-        customers_df = pd.read_csv(f'{data_folder}/03_Library_SystemCustomers.csv')
-        
-        print(f"âœ“ Books CSV loaded: {len(books_df)} records")
-        print(f"âœ“ Customers CSV loaded: {len(customers_df)} records")
-        
-        initial_count = len(books_df)
-        
-    except FileNotFoundError as e:
-        print(f"\nâŒ ERROR: {str(e)}")
-        print("\nMake sure your CSV files are in a 'Data' or 'data' folder:")
-        print("  - 03_Library_Systembook.csv")
-        print("  - 03_Library_SystemCustomers.csv")
-        return
+    parser.add_argument(
+        '--customers',
+        default='data/03_Library_SystemCustomers.csv',
+        help='Path to customers CSV file (default: data/03_Library_SystemCustomers.csv)'
+    )
     
-    # ========================================================================
-    # STEP 2: VALIDATE DATA
-    # ========================================================================
-    print_section_header("STEP 2: VALIDATING DATA")
+    # SQL Server arguments
+    parser.add_argument(
+        '--server',
+        default='localhost',
+        help='SQL Server instance name (default: localhost)'
+    )
     
-    errors = validate_dataframe(books_df, customers_df)
-    print_validation_summary(errors)
+    parser.add_argument(
+        '--database',
+        default='DE5_Module5',
+        help='Database name (default: DE5_Module5)'
+    )
     
-    # ========================================================================
-    # STEP 3: CLEAN DATA
-    # ========================================================================
-    print_section_header("STEP 3: CLEANING DATA")
+    parser.add_argument(
+        '--no-sql',
+        action='store_true',
+        help='Skip SQL Server load, only save to CSV'
+    )
     
-    books_cleaned = clean_dataframe(books_df.copy())
+    # Parse arguments
+    args = parser.parse_args()
     
-    # ========================================================================
-    # STEP 4: TRANSFORM DATA
-    # ========================================================================
-    print_section_header("STEP 4: TRANSFORMING DATA")
+    # Run pipeline with provided arguments
+    books_df, customers_df, metrics = run_pipeline(
+        books_path=args.books,
+        customers_path=args.customers,
+        save_to_sql=not args.no_sql,
+        server=args.server,
+        database=args.database
+    )
     
-    books_transformed = standardize_dates(books_cleaned)
-    books_transformed = calculate_loan_metrics(books_transformed)
-    
-    # ========================================================================
-    # STEP 5: LOAD TO SQL SERVER (MANDATORY)
-    # ========================================================================
-    final_count = len(books_cleaned)
-    report = generate_data_quality_report(errors, initial_count, final_count)
-    
-    print_section_header("STEP 5: LOADING DATA TO SQL SERVER")
-    print("\nSQL Server is the primary data destination for this pipeline.")
-    print("Connecting to: localhost/LibraryDataQuality")
-    print("="*70)
-    
-    # SQL Server connection is MANDATORY
-    server = 'localhost'
-    database = 'LibraryDataQuality'
-    
-    sql_success = load_data_to_sql_server(books_transformed, customers_df, report, server, database)
-    
-    if not sql_success:
-        print("\n" + "="*70)
-        print("ERROR: PIPELINE FAILED - Could not connect to SQL Server")
-        print("="*70)
-        print("\nSQL Server connection is required for this pipeline.")
-        print("\nTroubleshooting:")
-        print("  1. Verify SQL Server is running")
-        print("  2. Check server name - try:")
-        print("     - localhost")
-        print("     - localhost\\\\SQLEXPRESS")
-        print("     - (localdb)\\\\MSSQLLocalDB")
-        print("  3. Install pyodbc: pip install pyodbc")
-        print("  4. Install ODBC Driver 17 or 18 for SQL Server")
-        print("="*70)
-        return  # Exit pipeline on SQL Server failure
-    
-    # ========================================================================
-    # STEP 6: GENERATE REPORT
-    # ========================================================================
-    print_section_header("STEP 6: GENERATING REPORT")
-    print_final_report(report)
-    
-    # ========================================================================
-    # COMPLETION
-    # ========================================================================
-    print_section_header("PIPELINE COMPLETE")
-    print("\n[SUCCESS] Data quality pipeline executed successfully!")
-    print(f"\nData loaded to SQL Server: {server}/{database}")
-    print(f"\nNext Steps:")
-    print(f"  1. Query SQL Server tables to review data")
-    print(f"  2. Check DataQualityLog table for processing metrics")
-    print(f"  3. Create Power BI dashboard connected to SQL Server")
-    print(f"  4. Write unit tests for validation functions")
-    print(f"  5. Set up CI/CD pipeline automation")
-    print("="*70 + "\n")
+    return books_df, customers_df, metrics
 
 
 if __name__ == "__main__":
-    main()
+    # Run with command-line arguments
+    books_df, customers_df, metrics = main()
