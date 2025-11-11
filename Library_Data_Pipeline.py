@@ -1,7 +1,7 @@
 """
-Library Data Quality Pipeline - Final Version
+Library Data Quality Pipeline
 
-Author: Geoff Daly (Enhanced)
+Author: Geoff Daly
 Date: 11/11/2025
 
 Description:
