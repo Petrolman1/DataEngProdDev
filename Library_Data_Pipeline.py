@@ -9,10 +9,10 @@ Description:
     Validates, cleans, transforms, and loads library checkout data.
 
 Usage:
-    python library_pipeline_final.py
-    python library_pipeline_final.py --books "data/03_Library_Systembook.csv" --customers "data/03_Library_SystemCustomers.csv"
-    python library_pipeline_final.py --no-sql
-    python library_pipeline_final.py --help
+    python Library_Data_Pipeline.py
+    python Library_Data_Pipeline.py --books "data/03_Library_Systembook.csv" --customers "data/03_Library_SystemCustomers.csv"
+    python Library_Data_Pipeline.py --no-sql
+    python Library_Data_Pipeline.py --help
 """
 
 import pandas as pd
@@ -100,7 +100,7 @@ def naCheck(df):
     Check for and remove records with missing critical data
     AM Task Requirement: naCheck function
 
-    Now:
+    Logic:
       - drops fully empty rows
       - drops rows where BOTH Books and Customer ID are missing
       - keeps rows where only one is missing (but logs counts)
@@ -316,9 +316,10 @@ def dataEnrich(df):
 # ============================================================================
 
 class DEMetrics:
-    """Track Data Engineering metrics throughout the pipeline"""
+    """Track Data Engineering metrics throughout the pipeline for a single table"""
 
-    def __init__(self):
+    def __init__(self, table_name):
+        self.table_name = table_name
         self.initial_rows = 0
         self.rows_after_duplicates = 0
         self.rows_after_na = 0
@@ -340,7 +341,8 @@ class DEMetrics:
         self.calculate_totals()
 
         print("\n" + "="*70)
-        print("DATA ENGINEERING METRICS SUMMARY".center(70))
+        title = f"DATA ENGINEERING METRICS SUMMARY - {self.table_name.upper()}"
+        print(title.center(70))
         print("="*70)
         print(f"\n📊 Processing Metrics:")
         print(f"  Initial records loaded:        {self.initial_rows}")
@@ -359,6 +361,7 @@ class DEMetrics:
         self.calculate_totals()
         return {
             'timestamp': self.timestamp,
+            'table_name': self.table_name,
             'initial_records': self.initial_rows,
             'duplicates_removed': self.duplicates_removed,
             'na_removed': self.na_removed,
@@ -418,7 +421,7 @@ def create_database_if_not_exists(server='localhost', database='DE5_Module5'):
         return False
 
 
-def write_to_sql_server(books_df, customers_df, metrics, server='localhost', database='DE5_Module5'):
+def write_to_sql_server(books_df, customers_df, metrics_list, server='localhost', database='DE5_Module5'):
     """
     Write cleaned data to SQL Server (SSMS)
     AM Task Requirement: Write to local SQL Server
@@ -426,7 +429,7 @@ def write_to_sql_server(books_df, customers_df, metrics, server='localhost', dat
     Args:
         books_df: Cleaned books DataFrame
         customers_df: Cleaned customers DataFrame
-        metrics: DEMetrics object
+        metrics_list: list of DEMetrics objects (one per table)
         server: SQL Server instance name
         database: Database name
     """
@@ -462,11 +465,11 @@ def write_to_sql_server(books_df, customers_df, metrics, server='localhost', dat
         customers_df.to_sql('customers_bronze', con=engine, if_exists='replace', index=False)
         print(f"  ✓ Loaded {len(customers_df)} records to 'customers_bronze' table")
 
-        # Step 6: Write DE metrics log
+        # Step 6: Write DE metrics log (one row per table)
         print("\n📊 Writing DE metrics log...")
-        metrics_df = pd.DataFrame([metrics.to_dict()])
+        metrics_df = pd.DataFrame([m.to_dict() for m in metrics_list])
         metrics_df.to_sql('DE_metrics_log', con=engine, if_exists='append', index=False)
-        print(f"  ✓ Logged metrics to 'DE_metrics_log' table")
+        print(f"  ✓ Logged {len(metrics_df)} metrics rows to 'DE_metrics_log' table")
 
         print("\n" + "="*70)
         print("✅ SQL SERVER LOAD COMPLETE".center(70))
@@ -496,7 +499,7 @@ def write_to_sql_server(books_df, customers_df, metrics, server='localhost', dat
             print("         2. Connect to your SQL Server")
             print("         3. Run the setup_database.sql script provided")
             print("\n      Option B - Use the --no-sql flag to skip SQL Server:")
-            print("         python library_pipeline_final.py --no-sql")
+            print("         python Library_Data_Pipeline.py --no-sql")
             print("\n      Option C - Grant permissions (in SSMS):")
             print("         GRANT ALL ON DATABASE::DE5_Module5 TO [YourDomain\\YourUser];")
 
@@ -523,7 +526,7 @@ def write_to_sql_server(books_df, customers_df, metrics, server='localhost', dat
             print("      3. Use --no-sql flag to skip SQL and save to CSV only")
 
         print("\n   💡 TIP: Use --no-sql flag to skip SQL Server:")
-        print("      python library_pipeline_final.py --no-sql")
+        print("      python Library_Data_Pipeline.py --no-sql")
         print("      This will save to CSV files instead.")
 
         return False
@@ -545,47 +548,61 @@ def run_pipeline(books_path, customers_path, save_to_sql=True, server='localhost
         database: Database name
 
     Returns:
-        tuple: (books_df, customers_df, metrics)
+        tuple: (books_df, customers_df, (metrics_books, metrics_customers))
     """
     print("\n" + "="*70)
     print("LIBRARY DATA QUALITY PIPELINE - STARTING".center(70))
     print("="*70)
 
-    # Initialize metrics tracker
-    metrics = DEMetrics()
+    # Initialize metrics trackers
+    metrics_books = DEMetrics(table_name='books')
+    metrics_customers = DEMetrics(table_name='customers')
 
     # Step 1: Load data (fileLoader)
     books_df, customers_df = fileLoader(books_path, customers_path)
-    metrics.initial_rows = len(books_df)
+
+    # === BOOKS METRICS ===
+    metrics_books.initial_rows = len(books_df)
 
     # Step 2: Remove duplicates (duplicateCheck)
     books_df = duplicateCheck(books_df)
-    metrics.rows_after_duplicates = len(books_df)
-    metrics.duplicates_removed = metrics.initial_rows - metrics.rows_after_duplicates
+    metrics_books.rows_after_duplicates = len(books_df)
+    metrics_books.duplicates_removed = metrics_books.initial_rows - metrics_books.rows_after_duplicates
 
     # Step 3: Remove NaN values (naCheck)
     books_df = naCheck(books_df)
-    metrics.rows_after_na = len(books_df)
-    metrics.na_removed = metrics.rows_after_duplicates - metrics.rows_after_na
+    metrics_books.rows_after_na = len(books_df)
+    metrics_books.na_removed = metrics_books.rows_after_duplicates - metrics_books.rows_after_na
 
     # Step 4: Clean dates (dateCleaner)
     books_df = dateCleaner(books_df)
-    metrics.rows_after_cleaning = len(books_df)
-    metrics.invalid_dates_removed = metrics.rows_after_na - metrics.rows_after_cleaning  # likely 0 now
+    metrics_books.rows_after_cleaning = len(books_df)
+    # With current logic, we don't drop rows here, so this will usually be 0
+    metrics_books.invalid_dates_removed = metrics_books.rows_after_na - metrics_books.rows_after_cleaning
 
     # Step 5: Enrich data (dataEnrich)
     books_df = dataEnrich(books_df)
-    metrics.final_rows = len(books_df)
-    metrics.negative_duration_removed = metrics.rows_after_cleaning - metrics.final_rows  # likely 0 now
+    metrics_books.final_rows = len(books_df)
+    # We also don't drop rows here, so this will usually be 0
+    metrics_books.negative_duration_removed = metrics_books.rows_after_cleaning - metrics_books.final_rows
 
-    # Step 6: Clean customers data
+    # === CUSTOMERS METRICS ===
     print("\n👥 Cleaning customers data...")
-    # Drop only fully empty rows to preserve as much as possible
+    metrics_customers.initial_rows = len(customers_df)
+
+    # At the moment we only drop fully empty rows for customers
     customers_df = customers_df.dropna(how='all')
+    metrics_customers.rows_after_duplicates = metrics_customers.initial_rows   # no dup step yet
+    metrics_customers.rows_after_na = len(customers_df)
+    metrics_customers.na_removed = metrics_customers.initial_rows - metrics_customers.rows_after_na
+    metrics_customers.rows_after_cleaning = metrics_customers.rows_after_na   # no date cleaning
+    metrics_customers.final_rows = metrics_customers.rows_after_cleaning
+
     print(f"  ✓ Valid customers: {len(customers_df)}")
 
-    # Step 7: Print metrics
-    metrics.print_summary()
+    # Step 7: Print metrics summaries per table
+    metrics_books.print_summary()
+    metrics_customers.print_summary()
 
     # Step 8: Save to CSV
     print("\n💾 Saving cleaned data to CSV files...")
@@ -596,13 +613,13 @@ def run_pipeline(books_path, customers_path, save_to_sql=True, server='localhost
 
     # Step 9: Write to SQL Server (if enabled)
     if save_to_sql:
-        write_to_sql_server(books_df, customers_df, metrics, server, database)
+        write_to_sql_server(books_df, customers_df, [metrics_books, metrics_customers], server, database)
 
     print("\n" + "="*70)
     print("✅ PIPELINE COMPLETE".center(70))
     print("="*70)
 
-    return books_df, customers_df, metrics
+    return books_df, customers_df, (metrics_books, metrics_customers)
 
 
 # ============================================================================
@@ -669,7 +686,7 @@ Examples:
     args = parser.parse_args()
 
     # Run pipeline with provided arguments
-    books_df, customers_df, metrics = run_pipeline(
+    books_df, customers_df, (metrics_books, metrics_customers) = run_pipeline(
         books_path=args.books,
         customers_path=args.customers,
         save_to_sql=not args.no_sql,
@@ -677,7 +694,7 @@ Examples:
         database=args.database
     )
 
-    return books_df, customers_df, metrics
+    return books_df, customers_df, (metrics_books, metrics_customers)
 
 
 if __name__ == "__main__":
