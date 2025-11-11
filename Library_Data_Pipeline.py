@@ -10,7 +10,7 @@ Description:
 
 Usage:
     python library_pipeline_final.py
-    python library_pipeline_final.py --books "data/03_Library Systembook.csv" --customers "data/03_Library SystemCustomers.csv"
+    python library_pipeline_final.py --books "data/03_Library_Systembook.csv" --customers "data/03_Library_SystemCustomers.csv"
     python library_pipeline_final.py --no-sql
     python library_pipeline_final.py --help
 """
@@ -623,7 +623,7 @@ Examples:
   python %(prog)s
 
   # Specify custom file paths:
-  python %(prog)s --books "data/03_Library Systembook.csv" --customers "data/03_Library SystemCustomers.csv"
+  python %(prog)s --books "data/03_Library_Systembook.csv" --customers "data/03_Library_SystemCustomers.csv"
 
   # Specify SQL Server details:
   python %(prog)s --server localhost --database LibraryDB
@@ -636,14 +636,14 @@ Examples:
     # File path arguments
     parser.add_argument(
         '--books',
-        default='data/03_Library Systembook.csv',
-        help='Path to books CSV file (default: data/03_Library Systembook.csv)'
+        default='data/03_Library_Systembook.csv',
+        help='Path to books CSV file (default: data/03_Library_Systembook.csv)'
     )
 
     parser.add_argument(
         '--customers',
-        default='data/03_Library SystemCustomers.csv',
-        help='Path to customers CSV file (default: data/03_Library SystemCustomers.csv)'
+        default='data/03_Library_SystemCustomers.csv',
+        help='Path to customers CSV file (default: data/03_Library_SystemCustomers.csv)'
     )
 
     # SQL Server arguments
