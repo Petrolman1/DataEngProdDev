@@ -1,6 +1,5 @@
 """
 Library Data Quality Pipeline - Final Version
-Meets all AM Task requirements + Stretch Goal
 
 Author: Geoff Daly (Enhanced)
 Date: 11/11/2025
