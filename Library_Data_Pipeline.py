@@ -4,6 +4,15 @@ Library Data Quality Pipeline - Final Version
 Author: Geoff Daly (Enhanced)
 Date: 11/11/2025
 
+Description:
+    Automated data quality pipeline for library management system.
+    Validates, cleans, transforms, and loads library checkout data.
+
+Usage:
+    python library_pipeline_final.py
+    python library_pipeline_final.py --books data/books.csv --customers data/customers.csv
+    python library_pipeline_final.py --no-sql
+    python library_pipeline_final.py --help
 """
 
 import pandas as pd
@@ -287,6 +296,50 @@ class DEMetrics:
 # SECTION 3: SQL SERVER INTEGRATION
 # ============================================================================
 
+def create_database_if_not_exists(server='localhost', database='DE5_Module5'):
+    """
+    Create the database if it doesn't exist
+    
+    Args:
+        server: SQL Server instance name
+        database: Database name to create
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        import pyodbc
+        
+        # Connect to master database to create our database
+        conn_string = (
+            f"Driver={{ODBC Driver 17 for SQL Server}};"
+            f"Server={server};"
+            f"Database=master;"
+            f"Trusted_Connection=yes;"
+        )
+        
+        conn = pyodbc.connect(conn_string)
+        conn.autocommit = True
+        cursor = conn.cursor()
+        
+        # Check if database exists
+        cursor.execute(f"SELECT name FROM sys.databases WHERE name = '{database}'")
+        if cursor.fetchone():
+            print(f"  ✓ Database '{database}' already exists")
+        else:
+            # Create database
+            cursor.execute(f"CREATE DATABASE {database}")
+            print(f"  ✓ Database '{database}' created successfully")
+        
+        cursor.close()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"  ⚠️  Could not create database: {e}")
+        return False
+
+
 def write_to_sql_server(books_df, customers_df, metrics, server='localhost', database='DE5_Module5'):
     """
     Write cleaned data to SQL Server (SSMS)
@@ -305,26 +358,33 @@ def write_to_sql_server(books_df, customers_df, metrics, server='localhost', dat
     
     try:
         from sqlalchemy import create_engine
+        import pyodbc
         
-        # Create connection string with Windows Authentication
+        # Step 1: Create database if it doesn't exist
+        print("\n🔧 Checking database...")
+        create_database_if_not_exists(server, database)
+        
+        # Step 2: Create connection string with Windows Authentication
         connection_string = f'mssql+pyodbc://@{server}/{database}?trusted_connection=yes&driver=ODBC+Driver+17+for+SQL+Server'
         
-        # Create engine
+        # Step 3: Create engine and test connection
         engine = create_engine(connection_string)
         
-        print(f"\n✓ Connected to SQL Server: {server}/{database}")
+        # Test the connection
+        with engine.connect() as connection:
+            print(f"  ✓ Connected to SQL Server: {server}/{database}")
         
-        # Write books data
+        # Step 4: Write books data
         print("\n📚 Writing books data...")
         books_df.to_sql('books_bronze', con=engine, if_exists='replace', index=False)
         print(f"  ✓ Loaded {len(books_df)} records to 'books_bronze' table")
         
-        # Write customers data
+        # Step 5: Write customers data
         print("\n👥 Writing customers data...")
         customers_df.to_sql('customers_bronze', con=engine, if_exists='replace', index=False)
         print(f"  ✓ Loaded {len(customers_df)} records to 'customers_bronze' table")
         
-        # Write DE metrics log
+        # Step 6: Write DE metrics log
         print("\n📊 Writing DE metrics log...")
         metrics_df = pd.DataFrame([metrics.to_dict()])
         metrics_df.to_sql('DE_metrics_log', con=engine, if_exists='append', index=False)
@@ -336,18 +396,58 @@ def write_to_sql_server(books_df, customers_df, metrics, server='localhost', dat
         
         return True
         
-    except ImportError:
-        print("\n⚠️  sqlalchemy not installed. Install with: pip install sqlalchemy pyodbc")
-        print("   Skipping SQL Server load...")
+    except ImportError as e:
+        print(f"\n⚠️  Missing required packages: {e}")
+        print("\n   Install with:")
+        print("   pip install sqlalchemy pyodbc")
+        print("\n   Skipping SQL Server load...")
         return False
         
     except Exception as e:
+        error_msg = str(e).lower()
         print(f"\n❌ Error writing to SQL Server: {e}")
-        print("   Troubleshooting:")
-        print("   1. Ensure SQL Server is running")
-        print("   2. Check database name exists")
-        print("   3. Verify ODBC Driver 17 for SQL Server is installed")
-        print("   4. Confirm Windows Authentication is enabled")
+        print("\n   📋 TROUBLESHOOTING GUIDE:")
+        
+        if 'login failed' in error_msg:
+            print("   ❌ LOGIN FAILED - Possible causes:")
+            print("      1. User 'MIS\\Admin' doesn't have SQL Server access")
+            print("      2. Windows Authentication not enabled")
+            print("\n   ✅ SOLUTIONS:")
+            print("      Option A - Run SQL Server Management Studio (SSMS) as Administrator:")
+            print("         1. Right-click SSMS → 'Run as administrator'")
+            print("         2. Connect to your SQL Server")
+            print("         3. Run the setup_database.sql script provided")
+            print("\n      Option B - Use the --no-sql flag to skip SQL Server:")
+            print("         python library_pipeline_final.py --no-sql")
+            print("\n      Option C - Grant permissions (in SSMS):")
+            print("         GRANT ALL ON DATABASE::DE5_Module5 TO [MIS\\Admin];")
+            
+        elif 'cannot open database' in error_msg or 'database' in error_msg:
+            print("   ❌ DATABASE NOT FOUND - The database doesn't exist")
+            print("\n   ✅ SOLUTION - Create the database:")
+            print("      1. Open SQL Server Management Studio (SSMS)")
+            print("      2. Open the file: setup_database.sql")
+            print("      3. Execute the script (F5)")
+            print("      4. Re-run this pipeline")
+            print("\n      Or run this SQL command in SSMS:")
+            print("         CREATE DATABASE DE5_Module5;")
+            
+        elif 'driver' in error_msg or 'odbc' in error_msg:
+            print("   ❌ DRIVER NOT FOUND")
+            print("\n   ✅ SOLUTION - Install ODBC Driver:")
+            print("      Download: https://docs.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server")
+            
+        else:
+            print("   ❌ GENERAL ERROR")
+            print("\n   ✅ QUICK SOLUTIONS:")
+            print("      1. Ensure SQL Server is running")
+            print("      2. Run setup_database.sql in SSMS first")
+            print("      3. Use --no-sql flag to skip SQL and save to CSV only")
+            
+        print("\n   💡 TIP: Use --no-sql flag to skip SQL Server:")
+        print("      python library_pipeline_final.py --no-sql")
+        print("      This will save to CSV files instead.")
+        
         return False
 
 
@@ -433,7 +533,7 @@ def run_pipeline(books_path, customers_path, save_to_sql=True, server='localhost
 def main():
     """
     Main function with argparse for command-line execution
-    argparse library for CLI with file path specification
+    STRETCH GOAL: argparse library for CLI with file path specification
     """
     parser = argparse.ArgumentParser(
         description='Library Data Quality Pipeline - Process and clean library data',
