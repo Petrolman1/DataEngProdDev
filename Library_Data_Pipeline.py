@@ -39,14 +39,34 @@ def fileLoader(books_path, customers_path):
     Returns:
         tuple: (books_df, customers_df)
     """
+    import os
+
     print("\n📚 Loading data files...")
+    print(f"  [debug] Current working directory: {os.getcwd()}")
+    print(f"  [debug] Books path: {books_path}")
+    print(f"  [debug] Customers path: {customers_path}")
 
     try:
         books_df = pd.read_csv(books_path)
         customers_df = pd.read_csv(customers_path)
 
-        print(f"  ✓ Books data loaded: {len(books_df)} rows")
-        print(f"  ✓ Customers data loaded: {len(customers_df)} rows")
+        print(f"  ✓ Raw books rows loaded: {len(books_df)}")
+        print(f"  ✓ Raw customers rows loaded: {len(customers_df)}")
+
+        # Drop fully empty rows here so metrics start from "real" records
+        books_empty = books_df.isna().all(axis=1).sum()
+        customers_empty = customers_df.isna().all(axis=1).sum()
+
+        if books_empty > 0:
+            print(f"  • Dropping {books_empty} fully empty rows from books")
+            books_df = books_df.dropna(how='all')
+
+        if customers_empty > 0:
+            print(f"  • Dropping {customers_empty} fully empty rows from customers")
+            customers_df = customers_df.dropna(how='all')
+
+        print(f"  ✓ Books data usable rows: {len(books_df)}")
+        print(f"  ✓ Customers data usable rows: {len(customers_df)}")
 
         return books_df, customers_df
 
@@ -76,9 +96,6 @@ def duplicateCheck(df):
     # Work on a copy
     df = df.copy()
 
-    # Drop fully empty rows early
-    df = df.dropna(how='all')
-
     initial_count = len(df)
 
     # Check for duplicates based on Books, Customer ID, and Checkout date
@@ -101,7 +118,6 @@ def naCheck(df):
     AM Task Requirement: naCheck function
 
     Logic:
-      - drops fully empty rows
       - drops rows where BOTH Books and Customer ID are missing
       - keeps rows where only one is missing (but logs counts)
 
@@ -115,9 +131,6 @@ def naCheck(df):
 
     df = df.copy()
     initial_count = len(df)
-
-    # Drop fully empty rows
-    df = df.dropna(how='all')
 
     # Normalise blanks -> NaN in key columns
     df['Books'] = df['Books'].astype(str).str.strip()
@@ -590,7 +603,7 @@ def run_pipeline(books_path, customers_path, save_to_sql=True, server='localhost
     print("\n👥 Cleaning customers data...")
     metrics_customers.initial_rows = len(customers_df)
 
-    # At the moment we only drop fully empty rows for customers
+    # At the moment we only drop fully empty rows for customers (already done in fileLoader)
     customers_df = customers_df.dropna(how='all')
     metrics_customers.rows_after_duplicates = metrics_customers.initial_rows   # no dup step yet
     metrics_customers.rows_after_na = len(customers_df)
