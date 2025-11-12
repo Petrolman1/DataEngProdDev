@@ -5,6 +5,7 @@
 # Core data processing libraries
 pandas>=2.0.0
 numpy>=1.24.0
+pytest>=2.3.0
 
 # Database connectivity
 pyodbc>=4.0.39
