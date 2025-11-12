@@ -1,0 +1,18 @@
+# Library Data Quality Pipeline - Requirements
+# Author: Geoff Daly
+# Project: DataEngProdDev
+
+# Core data processing libraries
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Database connectivity
+pyodbc>=4.0.39
+
+# Testing framework (included in Python standard library, listed for reference)
+# unittest - built-in
+
+# Note: The following are built-in Python libraries and don't need installation:
+# - datetime
+# - re
+# - os
