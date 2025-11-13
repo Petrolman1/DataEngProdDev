@@ -1,4 +1,4 @@
-"""
+""" 
 Library Data Quality Pipeline
 
 Author: Geoff Daly (revised)
@@ -53,20 +53,15 @@ def fileLoader(books_path, customers_path):
         print(f"  ✓ Raw books rows loaded: {len(books_df)}")
         print(f"  ✓ Raw customers rows loaded: {len(customers_df)}")
 
-        # Drop fully empty rows here so metrics start from "real" records
+        # Just report fully empty rows, do NOT drop them here
         books_empty = books_df.isna().all(axis=1).sum()
         customers_empty = customers_df.isna().all(axis=1).sum()
 
         if books_empty > 0:
-            print(f"  • Dropping {books_empty} fully empty rows from books")
-            books_df = books_df.dropna(how='all')
+            print(f"  • Fully empty book rows detected: {books_empty} (will be removed in cleaning)")
 
         if customers_empty > 0:
-            print(f"  • Dropping {customers_empty} fully empty rows from customers")
-            customers_df = customers_df.dropna(how='all')
-
-        print(f"  ✓ Books data usable rows: {len(books_df)}")
-        print(f"  ✓ Customers data usable rows: {len(customers_df)}")
+            print(f"  • Fully empty customer rows detected: {customers_empty} (will be removed in cleaning)")
 
         return books_df, customers_df
 
@@ -603,7 +598,7 @@ def run_pipeline(books_path, customers_path, save_to_sql=True, server='localhost
     print("\n👥 Cleaning customers data...")
     metrics_customers.initial_rows = len(customers_df)
 
-    # At the moment we only drop fully empty rows for customers (already done in fileLoader)
+    # For customers: drop fully empty rows here so metrics capture the drop
     customers_df = customers_df.dropna(how='all')
     metrics_customers.rows_after_duplicates = metrics_customers.initial_rows   # no dup step yet
     metrics_customers.rows_after_na = len(customers_df)
