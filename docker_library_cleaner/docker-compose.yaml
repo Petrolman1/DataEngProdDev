@@ -13,5 +13,3 @@ services:
       
     environment:
       - PYTHONUNBUFFERED=1
-      
-    command: ["python", "library_data_pipeline_docker.py"]
