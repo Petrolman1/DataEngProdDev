@@ -5,7 +5,7 @@ Author: Geoff Daly
 
 -   File loading (fileLoader)
     Reads the books and customers CSVs.
-    Logs basic info, drops fully empty rows, and returns two DataFrames.
+    Logs basic info, and returns two DataFrames.
 
 -   Books data cleaning:
     Duplicate removal (duplicateCheck)
@@ -56,8 +56,11 @@ Author: Geoff Daly
     --server, --database for SQL Server details.
     --no-sql to skip SQL load (only save CSVs).
 
+-   Requiremnts file enabling pre-requisites to be loaded 
+    automatically for packaged version.    
+
 -   Containerised version (Docker) Created
-    Packaged
+    Packaged - Enables running in any environment.
     Always writes cleaned CSVs:
     books_cleaned_final.csv
     customers_cleaned_final.csv    
