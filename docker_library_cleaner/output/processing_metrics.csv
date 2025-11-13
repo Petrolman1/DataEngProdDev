@@ -1,0 +1,3 @@
+timestamp,table_name,initial_records,duplicates_removed,na_removed,invalid_dates_removed,negative_duration_removed,total_dropped,final_records,retention_rate
+2025-11-13 10:32:26.900332,books,21,1,1,0,0,2,19,90.5%
+2025-11-13 10:32:26.900332,customers,8,0,0,0,0,0,8,100.0%
