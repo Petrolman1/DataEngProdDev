@@ -19,8 +19,7 @@ Author: Geoff Daly
     Fixes obvious year typos (2062/2063 → 2023).
     Fixes impossible dates (e.g. 32/05 → 31/05).
     Converts Book checkout and Book Returned to datetime, leaving invalids as NaT (no row drops).
-    Keeps _raw copies of the original date strings.
-
+    
 -   Data enrichment (dataEnrich)
     Adds calculated fields without dropping rows:
     loan_duration (days between checkout and return, correcting swapped dates).
