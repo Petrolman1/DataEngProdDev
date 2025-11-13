@@ -65,3 +65,6 @@ Author: Geoff Daly
     customers_cleaned_final.csv    
 
 Running the script (python Library_Data_Pipeline.py [...]) executes the full pipeline with these options.
+
+Process Diagram
+![alt text](image.png)
