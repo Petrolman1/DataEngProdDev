@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  library-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: library-data-pipeline
+    volumes:
+      # Output to "cleaned_data" folder (created automatically in project directory)
+      # Works for any user on any system
+      - ./cleaned_data:/app/output
+      
+    environment:
+      - PYTHONUNBUFFERED=1
+      
+    command: ["python", "library_data_pipeline_docker.py"]
