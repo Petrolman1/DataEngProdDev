@@ -9,6 +9,7 @@ pytest>=2.3.0
 ArgParse>=1.4.0
 
 # Database connectivity
+SqlAlchemy>=2.0.44
 pyodbc>=4.0.39
 
 # Testing framework (included in Python standard library, listed for reference)
